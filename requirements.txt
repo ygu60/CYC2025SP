@@ -5,3 +5,4 @@ altair
 plotly
 pgeocode
 matplotlib
+openpyxl
