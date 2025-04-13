@@ -1,1 +1,7 @@
 matplotlib
+streamlit
+pandas
+altair
+plotly
+pgeocode
+matplotlib
