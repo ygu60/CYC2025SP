@@ -37,6 +37,9 @@ st.subheader("🎯 Total Raised & Average Gift by Campaign")
 campaign_df = df.groupby("Campaign Title")["Donation Amount"].agg(['sum', 'mean', 'count']).reset_index()
 campaign_df.rename(columns={"sum": "Total Raised", "mean": "Average Gift", "count": "Donations"}, inplace=True)
 
+# Add this to handle NaNs
+campaign_df = campaign_df.fillna(0)
+
 col1, col2 = st.columns(2)
 with col1:
     st.altair_chart(
