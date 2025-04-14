@@ -81,31 +81,50 @@ line = alt.Chart(monthly).mark_line(point=True).encode(
 
 st.altair_chart(line, use_container_width=True)
 
+import re
+
 # -- Section: Year-over-Year Growth by Campaign --
 st.subheader("📊 Year-over-Year (YoY) Growth by Campaign")
 
-df['Year'] = df['Date'].dt.year
-pivot = df.pivot_table(index='Campaign Title', columns='Year', values='Donation Amount', aggfunc='sum')
+# Use correct date column and ensure datetime
+df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+df['Donation Year'] = df['Date'].dt.year
 
-# Calculate YoY Growth safely
-growth = pd.DataFrame(index=pivot.index)
-years = sorted(pivot.columns.tolist())
+# Determine which campaign column exists
+campaign_col = 'Campaign' if 'Campaign' in df.columns else 'Campaign Title'
 
-for i in range(1, len(years)):
-    prev = years[i - 1]
-    curr = years[i]
-    growth[curr] = ((pivot[curr] - pivot[prev]) / pivot[prev].replace({0: pd.NA})) * 100
+if campaign_col in df.columns:
+    # Strip year from campaign names
+    def clean_campaign(name):
+        return re.sub(r'\s*\d{4}$', '', str(name))  # Remove 4-digit year at the end
 
-growth.reset_index(inplace=True)
-growth_melted = growth.melt(id_vars='Campaign Title', var_name='Year', value_name='YoY Growth (%)')
-growth_melted.dropna(inplace=True)
+    df['Campaign Clean'] = df[campaign_col].apply(clean_campaign)
 
-# Plot
-growth_chart = alt.Chart(growth_melted).mark_bar().encode(
-    x=alt.X('Year:O'),
-    y=alt.Y('YoY Growth (%):Q'),
-    color=alt.Color('Campaign Title:N', legend=alt.Legend(title="Campaign")),
-    tooltip=['Campaign Title', 'Year', 'YoY Growth (%)']
-).properties(height=350)
+    # Group by cleaned name and year
+    yoy_df = df.groupby(['Campaign Clean', 'Donation Year'])['Donation Amount'].sum().reset_index()
 
-st.altair_chart(growth_chart, use_container_width=True)
+    # Fill missing combinations with 0s
+    all_years = sorted(df['Donation Year'].dropna().unique())
+    all_campaigns = df['Campaign Clean'].dropna().unique()
+    full_index = pd.MultiIndex.from_product([all_campaigns, all_years], names=['Campaign Clean', 'Donation Year'])
+    yoy_df = yoy_df.set_index(['Campaign Clean', 'Donation Year']).reindex(full_index, fill_value=0).reset_index()
+
+    # Campaign selector
+    selected_campaign = st.selectbox("Select a Campaign", sorted(all_campaigns))
+
+    filtered_df = yoy_df[yoy_df['Campaign Clean'] == selected_campaign]
+
+    # Bar chart
+    bar_chart = alt.Chart(filtered_df).mark_bar(color="#F57C00").encode(
+        x=alt.X('Donation Year:O', title='Year'),
+        y=alt.Y('Donation Amount:Q', title='Total Donations'),
+        tooltip=['Campaign Clean', 'Donation Year', 'Donation Amount']
+    ).properties(
+        title=f"Year-over-Year Donations: {selected_campaign}",
+        height=400
+    )
+
+    st.altair_chart(bar_chart, use_container_width=True)
+
+else:
+    st.warning("No campaign column found in data.")
