@@ -21,6 +21,12 @@ st.markdown("""
 if 'donor_data' not in st.session_state:
     st.warning("Please upload a donation file on the Home page first.")
     st.stop()
+else:
+    st.success("✅ Data loaded!")
+    st.sidebar.markdown("### 📂 Files Processed:")
+    for fname in st.session_state['uploaded_file_names']:
+        st.sidebar.markdown(f"• `{fname}`")
+
 
 df = st.session_state['donor_data'].copy()
 df = df.dropna(subset=['Date', 'Donation Amount'])
